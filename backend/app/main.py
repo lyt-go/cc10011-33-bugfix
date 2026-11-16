@@ -5,14 +5,32 @@
 """
 from __future__ import annotations
 
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import ROUTERS
+from app.services.scheduler import scheduler
 from app.store import store
 
-app = FastAPI(title="实时指标计算与监控大盘平台", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """APP_SCHEDULER_ENABLED=1 时才启动订阅推送后台调度，默认关闭。"""
+    enabled = os.environ.get("APP_SCHEDULER_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+    if enabled:
+        scheduler.start()
+    try:
+        yield
+    finally:
+        if enabled:
+            scheduler.stop()
+
+
+app = FastAPI(title="实时指标计算与监控大盘平台", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

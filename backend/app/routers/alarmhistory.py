@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas import ActionResult, EntryPayload, PageResult
-from app.services.alarmhistory import AlarmhistoryService
+from app.services.alarmhistory import AlarmhistoryService, Conflict
 
 router = APIRouter(prefix="/api/alarmhistory", tags=["告警历史"])
 
@@ -50,9 +50,12 @@ def create_entry(payload: EntryPayload) -> ActionResult:
 
 @router.post("/{entry_id}/actions", response_model=ActionResult)
 def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
-    """对单条告警记录执行确认告警、标记恢复、关闭告警；不允许的动作会被拦下并说明原因。"""
-    action = str(payload.values.get("action") or "").strip()
-    entry, message = service.run_action(entry_id, action)
+    """对单条告警记录执行确认告警、标记恢复、关闭告警；标记恢复会联动订阅推送。"""
+    action = str(payload.value("action") or "").strip()
+    try:
+        entry, message = service.run_action(entry_id, action)
+    except Conflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if entry is None:
         return ActionResult(ok=False, message=message)
     return ActionResult(ok=True, message=message, entry=entry)

@@ -47,6 +47,7 @@ export default function AlarmhistoryView() {
   const [total, setTotal] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
+  const [notice, setNotice] = useState('')
   const filterFields = useMemo(() => columns.slice(0, 3), [])
 
   const reload = useCallback(async () => {
@@ -71,10 +72,11 @@ export default function AlarmhistoryView() {
 
   async function runAction(action: string, row: Row) {
     setErrorMessage('')
+    setNotice('')
     try {
       const response = await request(`${ENDPOINT}/${row.id}/actions`, {
         method: 'POST',
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ values: { action } }),
       })
       if (!response.ok) {
         throw new Error('告警历史动作未生效，请稍后重试')
@@ -156,6 +158,7 @@ export default function AlarmhistoryView() {
 
       <footer className="page-foot">
         <span>共 {total} 条告警历史记录</span>
+        {notice && <span className="ok-text">{notice}</span>}
         {errorMessage && <span className="error-text">{errorMessage}</span>}
       </footer>
     </section>
